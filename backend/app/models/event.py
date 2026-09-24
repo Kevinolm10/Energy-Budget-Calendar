@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import CheckConstraint, datetime, ForeignKey, Index, String, Text, func
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db import Base
@@ -11,13 +11,10 @@ if TYPE_CHECKING:
 
 
 class Event(Base):
-    __table__ = "events"
+    __tablename__ = "events"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    owner_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id", 
-        ondelete="CASCADE")
-        )
+    owner_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     title: Mapped[str] = mapped_column(String(200))
     notes: Mapped[str | None] = mapped_column(Text)
     starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
@@ -25,10 +22,11 @@ class Event(Base):
     energy_cost: Mapped[int] = mapped_column(default=0)
     rrule: Mapped[str | None] = mapped_column(String(500))
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), 
-        server_default=func.now(), 
-        onupdate=func.now()
-        )
+        DateTime(timezone=True), server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
     owner: Mapped["User"] = relationship(back_populates="events")
 
