@@ -1,10 +1,12 @@
+import { AuthContainer } from "@/components/AuthContainer";
+
 function App() {
 
   return (
     <>
-      <h1>
-        Hello-World
-      </h1>
+      <AuthContainer title="Welcome back" subtitle="Log in to your account">
+        <p>Login form goes here</p>
+      </AuthContainer>
     </>
   )
 }
