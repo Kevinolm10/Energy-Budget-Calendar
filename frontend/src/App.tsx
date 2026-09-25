@@ -1,14 +1,13 @@
-import { AuthContainer } from "@/components/AuthContainer";
+import { Navigate, Route, Routes } from "react-router";
+import { LoginPage } from "@/pages/LoginPage";
+import { RegisterPage } from "@/pages/RegisterPage";
 
-function App() {
-
+export default function App() {
   return (
-    <>
-      <AuthContainer title="Welcome back" subtitle="Log in to your account">
-        <p>Login form goes here</p>
-      </AuthContainer>
-    </>
-  )
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
+      <Route path="*" element={<Navigate to="/login" replace />} />
+    </Routes>
+  );
 }
-
-export default App
