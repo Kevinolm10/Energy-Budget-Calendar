@@ -7,5 +7,6 @@ class Settings(BaseSettings):
     jwt_secret: str
     access_token_minutes: int = 15
     refresh_token_days: int = 14
+    cookie_secure: bool = False
 
 settings = Settings()
