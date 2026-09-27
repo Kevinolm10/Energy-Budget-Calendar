@@ -1,13 +1,23 @@
 import { Navigate, Route, Routes } from "react-router";
 import { LoginPage } from "@/pages/LoginPage";
 import { RegisterPage } from "@/pages/RegisterPage";
+import { CalendarPage } from "@/pages/CalendarPage";
+import { AuthProvider } from "@/auth/authContext";
+import { ProtectedLayout } from "@/auth/ProtectedLayout";
 
 export default function App() {
   return (
-    <Routes>
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/register" element={<RegisterPage />} />
-      <Route path="*" element={<Navigate to="/login" replace />} />
-    </Routes>
+    <AuthProvider>
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+
+        <Route element={<ProtectedLayout />}>
+          <Route path="/" element={<CalendarPage />} />
+        </Route>
+
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </AuthProvider>
   );
 }
