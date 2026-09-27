@@ -18,7 +18,7 @@ async def get_current_user(
     creds: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)],
 ) -> User:
     unauthorized = HTTPException(
-        status.HTTP_401_UNAUTHARIZED,
+        status.HTTP_401_UNAUTHORIZED,
         detail="Not Authenticated",
         headers={"WWW-Authenticate": "Bearer"},
     )
