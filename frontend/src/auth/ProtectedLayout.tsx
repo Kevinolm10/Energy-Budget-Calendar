@@ -1,15 +1,29 @@
 import { Navigate, Outlet, useLocation } from "react-router";
-import { useAuth } from "./authContext";    
+import { useAuth } from "./authContext";
+import { Header } from "@/components/ui/Header";
 
 export function ProtectedLayout() {
-    const { user, loading } = useAuth() ?? { user: null, loading: false };
-    const location = useLocation();
+  const { user, loading } = useAuth();
+  const location = useLocation();
 
-    if (loading) return <div>Loading...</div>;
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center text-sm text-slate-500">
+        Loading...
+      </div>
+    );
+  }
 
-    if (!user) {
-        return <Navigate to="/login" replace state={{ from: location }} />;
-    }
+  if (!user) {
+    return <Navigate to="/login" replace state={{ from: location }} />;
+  }
 
-    return <Outlet />;
+  return (
+    <div className="min-h-screen bg-slate-50">
+      <Header />
+      <main className="mx-auto max-w-6xl px-4 py-6">
+        <Outlet />
+      </main>
+    </div>
+  );
 }

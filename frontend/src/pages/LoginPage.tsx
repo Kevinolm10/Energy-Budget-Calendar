@@ -5,6 +5,6 @@ export function LoginPage() {
   return (
     <AuthContainer title="Welcome back" subtitle="Log in to your account">
       <LoginForm />
-    </AuthContainer>
+    </AuthContainer >
   );
 }

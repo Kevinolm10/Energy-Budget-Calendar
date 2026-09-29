@@ -19,7 +19,7 @@ export function RegisterForm() {
     setSubmitting(true);
     try {
       await register({ email, password });
-      await login({ email, password });s
+      await login({ email, password });
       navigate("/", { replace: true });
     } catch {
       setError("Could not create account. The email may already be in use.");
@@ -69,7 +69,7 @@ export function RegisterForm() {
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 
-      <button type="submit" disabled={submitting} className="... disabled:opacity-50">
+      <button type="submit" disabled={submitting} className="w-full rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50">
         {submitting ? "Creating account..." : "Create account"}
       </button>
 
