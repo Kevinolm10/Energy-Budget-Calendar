@@ -6,7 +6,7 @@ type AuthContextType = {
   user: User | null;
   loading: boolean;
   login: (creds: AuthRequest) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -17,35 +17,44 @@ export function useAuth() {
   return ctx;
 }
 
-export function AuthProvider({children}: {children: ReactNode}) {
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-
   const login = async (credentials: AuthRequest) => {
-    const tokens = await authApi.login(credentials);
-    localStorage.setItem("access_token", tokens.access_token);
+    await authApi.login(credentials);
     const me = await authApi.getMe();
     setUser(me);
   };
 
-  const logout = () => {
-    localStorage.removeItem("access_token");
-    setUser(null);
+  const logout = async () => {
+    try {
+      await authApi.logout();
+    } finally {
+      setUser(null);
+    }
   };
 
   useEffect(() => {
-    if (!localStorage.getItem("access_token")) {
-      setLoading(false);
-      return;
-    }
-    authApi.getMe()
-      .then(setUser)
-      .catch(() => {
-        localStorage.removeItem("access_token");
-        setUser(null);
-      })
-      .finally(() => setLoading(false));
+    let cancelled = false;
+
+    const restoreSession = async () => {
+      try {
+        await authApi.refreshSession();
+        const me = await authApi.getMe();
+        if (!cancelled) setUser(me);
+      } catch {
+        if (!cancelled) setUser(null);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    restoreSession();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   return (
