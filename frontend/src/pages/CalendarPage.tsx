@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { EventForm } from "@/components/calendar/EventForm";
+import { Calendar } from "@/components/calendar/Calendar";
 
 export function CalendarPage() {
   const [showForm, setShowForm] = useState(false);
@@ -17,7 +18,9 @@ export function CalendarPage() {
         </button>
       </div>
 
-      {showForm && <EventForm />}
+      {showForm && <EventForm onSaved={() => setShowForm(false)} />}
+
+      <Calendar />
     </div>
   );
 }
