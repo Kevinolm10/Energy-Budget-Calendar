@@ -16,7 +16,7 @@ class UserRead(BaseModel):
 
     id: int
     email: EmailStr
-    daily_energy_capacity: int
+    weekly_energy_budget: int
 
 
 class TokenResponse(BaseModel):
