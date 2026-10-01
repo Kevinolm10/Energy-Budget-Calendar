@@ -1,3 +1,4 @@
+from app.services.energy import estimate_energy_cost
 from datetime import timedelta
 
 from fastapi import APIRouter, HTTPException, status
@@ -7,6 +8,7 @@ from sqlalchemy import select
 from app.api.deps import CurrentUser, DbSession
 from app.models import Event
 from app.schemas.event import EventCreate, EventRead, EventUpdate
+from app.core.energy_rates import RATES_PER_HOUR
 
 router = APIRouter(prefix="/api/events", tags=["events"])
 
@@ -43,10 +45,24 @@ async def list_events(start: AwareDatetime, end: AwareDatetime, user: CurrentUse
     return list(events)
 
 
+@router.get("/categories")
+async def list_categories(user: CurrentUser):
+    """Energy rate per hour for each event category."""
+    return [{"category": c, "rate_per_hour": r} for c, r in RATES_PER_HOUR.items()]
+
+
 @router.post("", response_model=EventRead, status_code=status.HTTP_201_CREATED)
 async def create_event(data: EventCreate, user: CurrentUser, db: DbSession):
-    """Create a new event for the current user."""
-    event = Event(**data.model_dump(), owner_id=user.id)
+    """Create an event; energy is calculated unless an override is given."""
+    event = Event(**data.model_dump(exclude={"energy_cost"}), owner_id=user.id)
+
+    if data.energy_cost is None:
+        event.energy_cost = estimate_energy_cost(event.category, event.starts_at, event.ends_at)
+        event.energy_cost_manual = False
+    else:
+        event.energy_cost = data.energy_cost
+        event.energy_cost_manual = True
+
     db.add(event)
     await db.commit()
     await db.refresh(event)
@@ -61,14 +77,26 @@ async def get_event(event_id: int, user: CurrentUser, db: DbSession):
 
 @router.patch("/{event_id}", response_model=EventRead)
 async def update_event(event_id: int, data: EventUpdate, user: CurrentUser, db: DbSession):
-    """Update only the fields that were sent."""
+    """Update only the fields that were sent, recalculating energy unless overridden."""
     event = await get_owned_event(db, event_id, user)
 
-    for field, value in data.model_dump(exclude_unset=True).items():
+    changes = data.model_dump(exclude_unset=True)
+    changes.pop("energy_cost", None)
+    for field, value in changes.items():
         setattr(event, field, value)
+
+    if "energy_cost" in data.model_fields_set:
+        if data.energy_cost is None:
+            event.energy_cost_manual = False
+        else:
+            event.energy_cost = data.energy_cost
+            event.energy_cost_manual = True
 
     if event.ends_at <= event.starts_at:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "ends_at must be after starts_at")
+
+    if not event.energy_cost_manual:
+        event.energy_cost = estimate_energy_cost(event.category, event.starts_at, event.ends_at)
 
     await db.commit()
     await db.refresh(event)
