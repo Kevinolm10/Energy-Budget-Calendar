@@ -2,10 +2,13 @@ import { useEffect, useState, type FormEvent } from "react";
 import {
   createEvent,
   getCategories,
+  updateEvent,
+  type CalendarEvent,
   type CategoryRate,
   type EventCategory,
   type EventCreate,
 } from "@/api/events";
+import { toDateTimeLocal } from "@/lib/dates";
 
 const MIN_COST = -50;
 const MAX_COST = 50;
@@ -16,19 +19,29 @@ const inputClass =
 const labelClass = "block text-sm font-medium text-slate-700";
 
 type EventFormProps = {
-  onSaved?: () => void;
+  event?: CalendarEvent; // when set, the form edits this event
+  initialStart?: Date;
+  initialEnd?: Date;
+  onSaved?: (saved: CalendarEvent) => void;
+  onCancel?: () => void;
 };
 
-export function EventForm({ onSaved }: EventFormProps) {
+export function EventForm({ event, initialStart, initialEnd, onSaved, onCancel }: EventFormProps) {
+  const isEdit = event !== undefined;
+
   const [categories, setCategories] = useState<CategoryRate[]>([]);
-  const [title, setTitle] = useState("");
-  const [notes, setNotes] = useState("");
-  const [category, setCategory] = useState<EventCategory>("other");
-  const [startsAt, setStartsAt] = useState("");
-  const [endsAt, setEndsAt] = useState("");
-  const [manualEnergy, setManualEnergy] = useState(false);
-  const [energyCost, setEnergyCost] = useState(0);
-  const [rrule, setRrule] = useState("");
+  const [title, setTitle] = useState(event?.title ?? "");
+  const [notes, setNotes] = useState(event?.notes ?? "");
+  const [category, setCategory] = useState<EventCategory>(event?.category ?? "other");
+  const [startsAt, setStartsAt] = useState(
+    event ? toDateTimeLocal(new Date(event.starts_at)) : initialStart ? toDateTimeLocal(initialStart) : ""
+  );
+  const [endsAt, setEndsAt] = useState(
+    event ? toDateTimeLocal(new Date(event.ends_at)) : initialEnd ? toDateTimeLocal(initialEnd) : ""
+  );
+  const [manualEnergy, setManualEnergy] = useState(event?.energy_cost_manual ?? false);
+  const [energyCost, setEnergyCost] = useState(event?.energy_cost ?? 0);
+  const [rrule, setRrule] = useState(event?.rrule ?? "");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -47,41 +60,47 @@ export function EventForm({ onSaved }: EventFormProps) {
     return Math.max(MIN_COST, Math.min(MAX_COST, Math.round(rate * hours)));
   })();
 
-  async function handleSubmit(event: FormEvent) {
-    event.preventDefault();
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
     setError(null);
     setSubmitting(true);
 
-    const data: EventCreate = {
+    const base = {
       title,
       notes: notes || null,
       category,
       starts_at: new Date(startsAt).toISOString(),
       ends_at: new Date(endsAt).toISOString(),
       rrule: rrule || null,
-      ...(manualEnergy ? { energy_cost: energyCost } : {}),
     };
 
     try {
-      await createEvent(data);
-      setTitle("");
-      setNotes("");
-      setCategory("other");
-      setStartsAt("");
-      setEndsAt("");
-      setManualEnergy(false);
-      setEnergyCost(0);
-      setRrule("");
-      onSaved?.();
+      let saved: CalendarEvent;
+      if (isEdit) {
+        // null switches an overridden event back to automatic energy
+        saved = await updateEvent(event.id, { ...base, energy_cost: manualEnergy ? energyCost : null });
+      } else {
+        const data: EventCreate = { ...base, ...(manualEnergy ? { energy_cost: energyCost } : {}) };
+        saved = await createEvent(data);
+        setTitle("");
+        setNotes("");
+        setCategory("other");
+        setStartsAt("");
+        setEndsAt("");
+        setManualEnergy(false);
+        setEnergyCost(0);
+        setRrule("");
+      }
+      onSaved?.(saved);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create event");
+      setError(err instanceof Error ? err.message : "Failed to save event");
     } finally {
       setSubmitting(false);
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 rounded-xl border border-slate-200 bg-white p-6">
+    <form onSubmit={handleSubmit} className="space-y-4">
       <div>
         <label htmlFor="title" className={labelClass}>Title</label>
         <input
@@ -101,11 +120,13 @@ export function EventForm({ onSaved }: EventFormProps) {
           id="category"
           value={category}
           onChange={(e) => setCategory(e.target.value as EventCategory)}
-          className={`${inputClass} bg-white capitalize`}
+          className={`${inputClass} bg-white`}
         >
           {categories.map((c) => (
             <option key={c.category} value={c.category}>
-              {c.category} ({c.rate_per_hour > 0 ? "+" : ""}{c.rate_per_hour}/hour)
+              {c.category.charAt(0).toUpperCase() + c.category.slice(1)} (
+              {c.rate_per_hour > 0 ? "+" : ""}
+              {c.rate_per_hour}/hour)
             </option>
           ))}
         </select>
@@ -208,13 +229,24 @@ export function EventForm({ onSaved }: EventFormProps) {
         </p>
       )}
 
-      <button
-        type="submit"
-        disabled={submitting}
-        className="w-full rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
-      >
-        {submitting ? "Saving..." : "Create event"}
-      </button>
+      <div className="flex gap-2">
+        {onCancel && (
+          <button
+            type="button"
+            onClick={onCancel}
+            className="flex-1 rounded-lg border border-slate-300 py-2 text-sm text-slate-700 hover:bg-slate-100"
+          >
+            Cancel
+          </button>
+        )}
+        <button
+          type="submit"
+          disabled={submitting}
+          className="flex-1 rounded-lg bg-slate-900 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+        >
+          {submitting ? "Saving..." : isEdit ? "Save changes" : "Create event"}
+        </button>
+      </div>
     </form>
   );
 }
